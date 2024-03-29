@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,9 +14,18 @@ class EmployeeController extends Controller
      */
     public function index()
     {
-    $pageTitle = 'Employee List';
-    return view('employee.index', ['pageTitle' => $pageTitle]);
+        $pageTitle = 'Employee List';
+        // QUERY BUILDER
+        $employees = DB::table('employees')
+            ->leftJoin('positions', 'employees.position_id', '=', 'positions.id')
+            ->select('employees.*', 'employees.id as employee_id', 'positions.name as position_name')
+            ->get();
+        return view('employee.index', [
+            'pageTitle' => $pageTitle,
+            'employees' => $employees
+        ]);
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -25,9 +34,12 @@ class EmployeeController extends Controller
      */
     public function create()
     {
-    $pageTitle = 'Create Employee';
-    return view('employee.create', compact('pageTitle'));
+        $pageTitle = 'Create Employee';
+        // QUERY BUILDER
+        $positions = DB::table('positions')->get();
+        return view('employee.create', compact('pageTitle', 'positions'));
     }
+
     /**
      * Store a newly created resource in storage.
      *
@@ -36,21 +48,29 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
-    $messages = [
-    'required' => ':Attribute harus diisi.',
-    'email' => 'Isi :attribute dengan format yang benar',
-    'numeric' => 'Isi :attribute dengan angka'
-    ];
-    $validator = Validator::make($request->all(), [
-    'firstName' => 'required',
-    'lastName' => 'required',
-    'email' => 'required|email',
-    'age' => 'required|numeric',
-    ], $messages);
-    if ($validator->fails()) {
-    return redirect()->back()->withErrors($validator)->withInput();
-    }
-    return $request->all();
+        $messages = [
+            'required' => ':Attribute harus diisi.',
+            'email' => 'Isi :attribute dengan format yang benar',
+            'numeric' => 'Isi :attribute dengan angka'
+        ];
+        $validator = Validator::make($request->all(), [
+            'firstName' => 'required',
+            'lastName' => 'required',
+            'email' => 'required|email',
+            'age' => 'required|numeric',
+        ], $messages);
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+        // QUERY BUILDER - Insert
+        DB::table('employees')->insert([
+            'firstname' => $request->firstName,
+            'lastname' => $request->lastName,
+            'email' => $request->email,
+            'age' => $request->age,
+            'position_id' => $request->position,
+        ]);
+        return redirect()->route('employees.index');
     }
 
 
@@ -60,9 +80,16 @@ class EmployeeController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(string $id)
     {
-        //
+        $pageTitle = 'Employee Detail';
+        // QUERY BUILDER
+        $employee = DB::table('employees')
+            ->leftJoin('positions', 'employees.position_id', '=', 'positions.id')
+            ->select('employees.*', 'employees.id as employee_id', 'positions.name as position_name')
+            ->where('employees.id', $id)
+            ->first();
+        return view('employee.show', compact('pageTitle', 'employee'));
     }
 
     /**
@@ -73,9 +100,13 @@ class EmployeeController extends Controller
      */
     public function edit($id)
     {
-        //
-    }
+        $pageTitle = 'Edit Employee';
+        // QUERY BUILDER
+        $employee = DB::table('employees')->find($id);
+        $positions = DB::table('positions')->get();
 
+        return view('employee.edit', compact('pageTitle', 'employee', 'positions'));
+    }
     /**
      * Update the specified resource in storage.
      *
@@ -85,17 +116,43 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
-    }
+        $messages = [
+            'required' => ':Attribute harus diisi.',
+            'email' => 'Isi :attribute dengan format yang benar',
+            'numeric' => 'Isi :attribute dengan angka'
+        ];
 
+        $validator = Validator::make($request->all(), [
+            'firstName' => 'required',
+            'lastName' => 'required',
+            'email' => 'required|email',
+            'age' => 'required|numeric',
+        ], $messages);
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+        // QUERY BUILDER - Update
+        DB::table('employees')->where('id', $id)->update([
+            'firstname' => $request->firstName,
+            'lastname' => $request->lastName,
+            'email' => $request->email,
+            'age' => $request->age,
+            'position_id' => $request->position,
+        ]);
+
+        return redirect()->route('employees.index');
+    }
     /**
      * Remove the specified resource from storage.
      *
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(string $id)
     {
-        //
+        // QUERY BUILDER - Delete
+        DB::table('employees')->where('id', $id)->delete();
+        return redirect()->route('employees.index');
     }
+
 }
